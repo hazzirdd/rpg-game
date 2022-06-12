@@ -78,6 +78,9 @@ inventory = {
     "consumables": {
         "health potion": 1
     },
+    "loot bag": {
+      "Wood Sword": 1
+    }
 }
 
 current_enemy = {}
@@ -147,6 +150,7 @@ def attack(foe):
     if current_enemy['health'] <= 0:
         print(f'The {foe_name} has been defeated!')
         get_drops(foe)
+        start()
     else:
         if foe_accuracy_roll != 0:
             player_stats['health'] -= foe_attack
@@ -169,18 +173,27 @@ def get_drops(foe):
         loot_val = enemies[foe]['drops']['common'][loot]
         print(f"Obtained a common drop!: {loot}")
         if loot in inventory:
-            inventory[loot] += 1
+            inventory["loot bag"][loot] += 1
         else:
-            inventory[loot] = loot_val
-        print(inventory)
+            inventory["loot bag"][loot] = loot_val
     
     elif loot_rarity > 800 and loot_rarity < 981:
         loot = random.choice(list(enemies[foe]["drops"]["rare"].keys()))
+        loot_val = enemies[foe]["drops"]["rare"][loot]
         print(f"Obtained a rare drop!: {loot}")
-    
+        if loot in inventory:
+            inventory["loot bag"][loot] += 1
+        else:
+            inventory["loot bag"][loot] = loot_val
+
     else:
         loot = random.choice(list(enemies[foe]["drops"]["legendary"].keys()))
+        loot_val = enemies[foe]["drops"]["legendary"][loot]
         print(f"Obtained a legendary drop!: {loot}")
+        if loot in inventory:
+            inventory["loot bag"][loot] += 1
+        else:
+            inventory["loot bag"][loot] = loot_val
 
 def display_inventory():
     weapon1 = inventory['Right Hand']
@@ -191,19 +204,45 @@ def display_inventory():
     for key, value in inventory['consumables'].items():
         print(f"    {key} : {value}")
 
+    print("Loot Bag: ")
+
+    for key, value in inventory['loot bag'].items():
+      print(f"    {key} : {value}")
+
     print("***************")
 
+    inv_option = int(input(f"Options:\n  Back(1)\n  Change Right Hand(2):  "))
+    if inv_option == 1:
+      start()
+    elif inv_option == 2:
+      new_right_hand = input(f"Change {weapon1} to:  ")
+      if new_right_hand in inventory["loot bag"]:
+        if weapon1 in inventory["loot bag"]:
+          inventory["loot bag"][weapon1] += 1
+        else:
+          inventory["loot bag"][weapon1] = 1
+        inventory["Right Hand"] = new_right_hand
+        display_inventory()
+      else:
+        print("Item not found in player in player inventory")
+        display_inventory()
 
 
-ready_up = input("Ready for battle? [y/n]: ")
 
-if ready_up == 'y':
-    foe_list = list(enemies.keys())
-    foe = random.choice(foe_list)
+def start():
+  ready_up = input("Battle (1)\nCheck Inventory (2)\n")
 
-    print(f'---------------\n A {foe} has approached!')
-    create_enemy(foe)
-    battle(foe)
-elif ready_up == 'i':
-    display_inventory()
+  if ready_up == '1':
+      foe_list = list(enemies.keys())
+      foe = random.choice(foe_list)
 
+      print(f'---------------\n A {foe} has approached!')
+      create_enemy(foe)
+      battle(foe)
+  elif ready_up == '2':
+      display_inventory()
+
+def main():
+  start()
+
+main()
