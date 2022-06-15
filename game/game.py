@@ -1,5 +1,7 @@
 import random, json, time, os
 
+import map
+import map_gen
 
 # enemie_dict = {}
 
@@ -10,6 +12,25 @@ import random, json, time, os
 #     enemie_dict[i] = 'test'
 
 # file.close()
+
+item_values = {
+    "Goblin Ear": 1,
+    "Goblin Club": 5,
+    "Shiny Necklace": 8,
+    "Goblin Cleaver": 9,
+    "Goblin Trophy": 10,
+    "Wolf Skin": 1,
+    "Wolf Fang": 1,
+    "Wolf Armor": 3,
+    "White Wolf Armor": 8,
+    "Wolf Fang Spear": 5,
+    "Wolf Trophy": 10,
+    "Rags": 0,
+    "Wood Sword": 1,
+    "God Sword": 0,
+    "Iron Sword": 5,
+    "health potion": 1,
+}
 
 enemies = {
     "Goblin": {
@@ -45,7 +66,8 @@ weapons = {
     "Wood Sword": {"attack": 1, "accuracy": 1},
     "Wolf Fang Spear": {"attack": 2, "accuracy": 2},
     "Goblin Club": {"attack": 2, "accuracy": 1},
-    "Goblin Cleaver": {"attack": 3, "accuracy": 1},
+    "Goblin Cleaver": {"attack": 3, "accuracy": 2},
+    "Iron Sword": {"attack": 3, "accuracy": 1},
 }
 
 armors = {
@@ -61,12 +83,16 @@ player_stats = {"health": 10, "max_health": 10}
 inventory = {
     "Right Hand": "God Sword",
     "Armor": "Rags",
-    "coin": 0,
-    "consumables": {"health potion": 1},
-    "loot bag": {"God Sword": 1, "Wolf Armor": 1},
+    "coin": 30,
+    "consumables": {'health potion': 1},
+    "loot bag": {"Goblin Ear": 1},
 }
 
 current_enemy = {}
+current_location = {}
+
+x = current_location["x"] = map_gen.x
+y = current_location["y"] = map_gen.y
 
 
 def create_enemy(foe):
@@ -92,36 +118,22 @@ def use_potion():
     del inventory["consumables"][use_potion]
 
 
-def battle(foe):
-    move = int(
-        input(
+def battle(foe, x, y):
+    move = input(
             f'---------------\n Your health: {player_stats["health"]}\n {foe} health: {current_enemy["health"]}\n---------------\n Attack (1)\n Inventory (2)\n Run Away (3)\n---------------\n'
         )
-    )
-    if move == 1:
+    
+    if move == '1':
         os.system("clear")
-        attack(foe)
-    elif move == 2:
+        attack(foe, x, y)
+    elif move == '2':
+        display_inventory(foe)
+    else:
         os.system("clear")
-        print("Opening Inventory...")
-        time.sleep(1)
-        print("---------------")
-
-        for key, val in inventory.items():
-            print(key, "-", val)
-
-        inv_choice = int(
-            input(f" ---------------\n Use Potion (1)\n Back (2)\n---------------\n")
-        )
-        if inv_choice == 1:
-            use_potion()
-            battle(foe)
-        else:
-            os.system("clear")
-            battle(foe)
+        battle(foe, x, y)
 
 
-def attack(foe):
+def attack(foe, x, y):
 
     weapon1 = inventory["Right Hand"]
     weapon1_attack = weapons[weapon1]["attack"]
@@ -148,8 +160,12 @@ def attack(foe):
 
     if current_enemy["health"] <= 0:
         print(f"The {foe_name} has been defeated!")
+        current_enemy.clear()
+        map_gen.ten_by_ten_map[f"x{x}y{y}"] = 'path'
         get_drops(foe)
-        start()
+        time.sleep(3.5)
+        map.mapper(x, y)
+        move(x, y)
     else:
         if foe_accuracy_roll != 0:
             player_stats["health"] -= foe_attack
@@ -195,6 +211,7 @@ def get_drops(foe):
         loot = random.choice(list(enemies[foe]["drops"]["rare"].keys()))
         loot_val = enemies[foe]["drops"]["rare"][loot]
         print(f"------------\nObtained a rare drop!: {loot}")
+        print(f"*Coins Collected: {coins}\n------------")
         if loot in inventory:
             inventory["loot bag"][loot] += 1
         else:
@@ -204,19 +221,20 @@ def get_drops(foe):
         loot = random.choice(list(enemies[foe]["drops"]["legendary"].keys()))
         loot_val = enemies[foe]["drops"]["legendary"][loot]
         print(f"------------\nObtained a legendary drop!: {loot}")
+        print(f"*Coins Collected: {coins}\n------------")
         if loot in inventory:
             inventory["loot bag"][loot] += 1
         else:
             inventory["loot bag"][loot] = loot_val
 
 
-def display_inventory():
+def display_inventory(foe):
     os.system("clear")
 
     weapon1 = inventory["Right Hand"]
     armor = inventory["Armor"]
     coins = inventory["coin"]
-    print(f"******************\n---INVENTORY---")
+    print(f"******************\n---INVENTORY---\nHealth: {player_stats['health']}\n---------------")
     print(f"Right Hand: {weapon1}\nArmor:  {armor}\nCoins: {coins}\n---------------")
     print(f"Consumable Items: ")
 
@@ -237,8 +255,14 @@ def display_inventory():
     )
 
     if inv_option == 1:
-        os.system("clear")
-        start()
+        if current_enemy:
+            os.system("clear")
+            battle(foe, x, y)
+        elif current_location["x"] == 'town_square':
+            town_square()
+        else:
+            os.system("clear")
+            move(x, y)
 
     elif inv_option == 2:
         new_right_hand = input(f"Change {weapon1} to:  ")
@@ -250,10 +274,10 @@ def display_inventory():
                 inventory["loot bag"][weapon1] = 1
                 del inventory["loot bag"][new_right_hand]
             inventory["Right Hand"] = new_right_hand
-            display_inventory()
+            display_inventory(foe)
         else:
             print("Item not found in player inventory")
-            display_inventory()
+            display_inventory(foe)
 
     elif inv_option == 3:
         new_armor = input(f"Change {armor} to:  ")
@@ -265,16 +289,16 @@ def display_inventory():
                 inventory["loot bag"][armor] = 1
                 del inventory["loot bag"][new_armor]
             inventory["Armor"] = new_armor
-            display_inventory()
+            display_inventory(foe)
         else:
             print("Item not found in player inventory")
             time.sleep(1)
-            display_inventory()
+            display_inventory(foe)
 
     elif inv_option == 4:
         use_potion()
         os.system("clear")
-        start()
+        display_inventory(foe)
 
 
 def start():
@@ -292,9 +316,213 @@ def start():
     elif ready_up == "2":
         display_inventory()
 
+def initiate_battle(x, y):
+    os.system("clear")
+    print('...')
+    time.sleep(1)
+    os.system("clear")
+
+    foe_list = list(enemies.keys())
+    foe = random.choice(foe_list)
+    print(f"---------------\n A {foe} has appeared!")
+
+    create_enemy(foe)
+    battle(foe, x, y)
+
+
+def move(x, y):
+
+    direction = input("W, A, S, D:\n").lower()
+    if direction == "w":
+        if map_gen.ten_by_ten_map[f"x{x}y{y + 1}"] == "wall" or map_gen.ten_by_ten_map[f"x{x + 1}y{y}"] == "side_wall":
+            print('You hit a wall')
+            time.sleep(.5)
+            os.system('clear')
+            time.sleep(.5)
+            map.mapper(x,y)
+            move(x, y)
+        else:
+            y += 1
+            time.sleep(.3)
+            move_check(x, y, direction)
+            # map.mapper(x,y)
+            move(x,y)
+
+    elif direction == "s":
+        if map_gen.ten_by_ten_map[f"x{x}y{y - 1}"] == "wall" or map_gen.ten_by_ten_map[f"x{x + 1}y{y}"] == "side_wall":
+            print('You hit a wall')
+            move(x, y)
+        else:
+            y -= 1
+            time.sleep(.3)
+            move_check(x, y, direction)
+            # map.mapper(x,y)
+            move(x,y)
+
+    elif direction == "a":
+        if map_gen.ten_by_ten_map[f"x{x - 1}y{y }"] == "wall" or map_gen.ten_by_ten_map[f"x{x + 1}y{y}"] == "side_wall":
+            print('You hit a wall')
+            move(x, y)
+        else:
+            x -= 1
+            time.sleep(.3)
+            move_check(x, y, direction)
+            # map.mapper(x,y)
+            move(x,y)
+
+    elif direction == "d":
+        if map_gen.ten_by_ten_map[f"x{x + 1}y{y}"] == "wall" or map_gen.ten_by_ten_map[f"x{x + 1}y{y}"] == "side_wall":
+            print('You hit a wall')
+            move(x, y)
+        else:
+            x += 1
+            time.sleep(.3)
+            move_check(x, y, direction)
+            # map.mapper(x,y)
+            move(x,y)
+
+    else:
+        print("direction invalid")
+        time.sleep(.3)
+        os.system("clear")
+        move(x, y)
+
+    os.system("clear")
+
+def move_check(x, y, direction):
+    
+    dict_key = f"x{x}y{y}"
+
+    if map_gen.ten_by_ten_map[dict_key] == "exit":
+        confirm = input("Leave the dungeon? [y/n]:  ")
+        if confirm == "y":
+            os.system("clear")
+            print(f"Leaving the dungeon...")
+            time.sleep(1)
+            town_square()
+        else:
+            move(map_gen.x, map_gen.y)
+    elif map_gen.ten_by_ten_map[dict_key] == "enemy":
+        initiate_battle(x, y)
+    elif map_gen.ten_by_ten_map[dict_key] == "chest":
+        print('You found a chest!')
+        time.sleep(2)
+        map_gen.ten_by_ten_map[dict_key] == 'path'
+    else: 
+        pass
+    os.system("clear")
+    map.mapper(x,y)
+
+
+def town_square():
+
+    current_location["x"] = 'town_square'
+
+    os.system("clear")
+    print("Welcome to the town square, traveler!\n---------------")
+    choice = int(input("What would you like to?\n  Enter The Dungeon (1)\n  Inventory(2)\n  Shop(3)\n"))
+
+    if choice == 1:
+        os.system("clear")
+        map.mapper(5,10)
+        move(5, 10)
+    elif choice == 2:
+        display_inventory(None)
+    elif choice == 3:
+        shop_chump()
+
+def shop_chump():
+    os.system("clear")
+    print("---------------\nOie! Name's Chump, take a look at what we have to offer, lad!\n---------------")
+    print('Buy Health Potion --3 coins-- (1)')
+    print('Buy Iron Sword -- 10 coins -- (2)')
+    print('Sell Items (3)')
+    print('Back (4)')
+    print(f"---------------\nMy Coins: {inventory['coin']}")
+    shop_choice = int(input('---------------\nWhat do ye fancy?\n'))
+
+    if shop_choice == 1:
+        if inventory["coin"] >= 3:
+            inventory["coin"] -= 3
+            print('Thanks a million!')
+            if 'health potion' in inventory["consumables"]:
+                inventory["consumables"]['health potion'] += 1
+            else:
+                inventory["consumables"]['health potion'] = 1
+            time.sleep(2)
+            shop_chump()
+        else: 
+            print('OIE! You trynna rob me, mate? Come back when you got some coin.')
+        
+    elif shop_choice == 2:
+        if inventory["coin"] >= 10:
+            inventory["coin"] -= 10
+            print("Tis a shiny beauty she is, careful mate! Here you go!")
+            if 'Iron Sword' in inventory:
+                inventory["loot bag"]['Iron Sword'] += 1
+            else:
+                inventory["loot bag"]['Iron Sword'] = 1
+            time.sleep(2)
+            shop_chump()
+        else:
+            print('OIE! You trynna rob me, mate? Come back when you got some coin!')
+            time.sleep(3)
+            shop_chump()
+    elif shop_choice == 3:
+        os.system("clear")
+        if inventory["loot bag"]:
+
+            print('---------------\nLoot Bag:')
+            for item in inventory["loot bag"]:
+                print(item)
+            print('---------------')
+
+            sell_item = input("Ooo nice stuf there lad, what can Chump take off your hands?\n---------------\nSell:  ")
+            print('---------------')
+
+            if sell_item in inventory["loot bag"]:
+                if sell_item in item_values:
+                    sell_confirm = input(f"Oie, I'll buy this {sell_item} off of ye for {item_values[sell_item]} coin, Deal? [y/n]\n")
+                    if sell_confirm == 'y':
+                        if inventory["loot bag"][sell_item] == 1:
+                            del inventory["loot bag"][sell_item]
+                        else:
+                            inventory["loot bag"][sell_item] -= 1
+                        print("Good deal!")
+                        inventory["coin"] += item_values[sell_item]
+                        time.sleep(2)
+                        shop_chump()
+                    else:
+                        print("Well stop waisting my time then mate!")
+                        time.sleep(3)
+                        shop_chump()
+                else:
+                    print(f'Oie sorry mate, Chump cant but this {sell_item}. Very sketchy, it is.')
+            else:
+                print("What kinda stunty stunt ye tryna pull? A fast one?")
+                time.sleep(3)
+                shop_chump()
+        else:
+            print("This a joke mate? You aint got squat in your loot bag!")
+            time.sleep(2.5)
+            shop_chump()
+
+    elif shop_choice == 4:
+        print("Oie! Come again then, mate!")
+        time.sleep(2.5)
+        town_square()                                
+    else:
+        print("I'm stright confused mate, what do you want?")
+        time.sleep(3)
+        town_square()
 
 def main():
-    start()
+    town_square()
 
+begin = input("Begin the Game? [y/n]:  ")
+if begin == "y":
+    main()
+else:
+    print('Maybe another time!')
 
 main()
