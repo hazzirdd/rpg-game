@@ -2,6 +2,7 @@ import random, json, time, os
 
 import map
 import map_gen
+import all_enemies
 
 # enemie_dict = {}
 
@@ -33,32 +34,8 @@ item_values = {
 }
 
 enemies = {
-    "Goblin": {
-        "attack": 1,
-        "health": 1,
-        "accuracy": 5,
-        "drops": {
-            "common": {
-                "Goblin Ear": 1,
-            },
-            "rare": {"Goblin Club": 1, "Shiny Necklace": 1},
-            "legendary": {"Goblin Cleaver": 1, "Goblin Trophy": 1},
-            "coin min": 0,
-            "coin max": 2,
-        },
-    },
-    "Wolf": {
-        "attack": 2,
-        "health": 3,
-        "accuracy": 4,
-        "drops": {
-            "common": {"Wolf Skin": 1, "Wolf Fang": 1},
-            "rare": {"Wolf Armor": 1, "Wolf Fang Spear": 1},
-            "legendary": {"White Wolf Armor": 1, "Wolf Trophy": 1},
-            "coin min": 0,
-            "coin max": 4,
-        },
-    },
+    "Goblin": all_enemies.goblin,
+    "Wolf": all_enemies.wolf,
 }
 
 weapons = {
@@ -81,11 +58,11 @@ consumables = {"health potion": 2}
 player_stats = {"health": 10, "max_health": 10}
 
 inventory = {
-    "Right Hand": "God Sword",
+    "Right Hand": "Wood Sword",
     "Armor": "Rags",
     "coin": 30,
     "consumables": {'health potion': 1},
-    "loot bag": {"Goblin Ear": 1},
+    "loot bag": {"Goblin Ear": 1, "Wolf Armor": 1},
 }
 
 current_enemy = {}
@@ -98,9 +75,9 @@ y = current_location["y"] = map_gen.y
 def create_enemy(foe):
     current_enemy.clear()
 
-    foe_attack = enemies[foe]["attack"]
-    foe_accuracy = enemies[foe]["attack"]
-    foe_health = enemies[foe]["health"]
+    foe_attack = enemies[foe].attack
+    foe_accuracy = enemies[foe].accuracy
+    foe_health = enemies[foe].health
     foe_name = foe
 
     current_enemy["name"] = foe_name
@@ -111,11 +88,20 @@ def create_enemy(foe):
 
 def use_potion():
     use_potion = input("What potion do you use?\n")
-    player_stats["health"] += consumables[use_potion]
-    print(
-        f"{use_potion} consumed! You are now at {player_stats['health']} health points"
-    )
-    del inventory["consumables"][use_potion]
+    if use_potion in inventory['consumables']:
+        if player_stats["health"] + consumables[use_potion] < player_stats["max_health"]:
+            player_stats["health"] += consumables[use_potion]
+            print(
+                f"{use_potion} consumed! You are now at {player_stats['health']} health points"
+            )
+            time.sleep(1)
+            del inventory["consumables"][use_potion]
+        else:
+            print(f'Cannot exceed max health! {player_stats["health"]}/{player_stats["max_health"]} health points')
+            time.sleep(1)
+    else:
+        print('Potion not found!')
+        time.sleep(1)
 
 
 def battle(foe, x, y):
@@ -127,7 +113,7 @@ def battle(foe, x, y):
         os.system("clear")
         attack(foe, x, y)
     elif move == '2':
-        display_inventory(foe)
+        display_inventory(foe, x, y)
     else:
         os.system("clear")
         battle(foe, x, y)
@@ -139,10 +125,10 @@ def attack(foe, x, y):
     weapon1_attack = weapons[weapon1]["attack"]
     weapon1_accuracy = weapons[weapon1]["accuracy"]
 
-    foe_name = current_enemy["name"]
-    foe_attack = enemies[foe]["attack"]
-    foe_accuracy = enemies[foe]["attack"]
-    foe_health = enemies[foe]["health"]
+    foe_attack = enemies[foe].attack
+    foe_accuracy = enemies[foe].accuracy
+    foe_health = enemies[foe].health
+    foe_name = foe
 
     player_accuracy_roll = random.randint(0, weapon1_accuracy)
     print(f"{player_accuracy_roll} out of {weapon1_accuracy}")
@@ -186,55 +172,52 @@ def attack(foe, x, y):
         time.sleep(1)
         print("GAME OVER!")
     else:
-        battle(foe)
+        battle(foe, x, y)
 
 
 def get_drops(foe):
-    coin_min = enemies[foe]["drops"]["coin min"]
-    coin_max = enemies[foe]["drops"]["coin max"]
+    coin_min = enemies[foe].min_coin
+    coin_max = enemies[foe].max_coin
     coins = random.randint(coin_min, coin_max)
     inventory["coin"] += coins
 
     loot_rarity = random.randint(1, 1000)
 
     if loot_rarity > 0 and loot_rarity < 801:
-        loot = random.choice(list(enemies[foe]["drops"]["common"].keys()))
-        loot_val = enemies[foe]["drops"]["common"][loot]
+        loot = random.choice(enemies[foe].c_drops)
         print(f"------------\nObtained a common drop!: {loot}")
         print(f"*Coins Collected: {coins}\n------------")
         if loot in inventory:
             inventory["loot bag"][loot] += 1
         else:
-            inventory["loot bag"][loot] = loot_val
+            inventory["loot bag"][loot] = 1
 
     elif loot_rarity > 800 and loot_rarity < 981:
-        loot = random.choice(list(enemies[foe]["drops"]["rare"].keys()))
-        loot_val = enemies[foe]["drops"]["rare"][loot]
+        loot = random.choice(enemies[foe].r_drops)
         print(f"------------\nObtained a rare drop!: {loot}")
         print(f"*Coins Collected: {coins}\n------------")
         if loot in inventory:
             inventory["loot bag"][loot] += 1
         else:
-            inventory["loot bag"][loot] = loot_val
+            inventory["loot bag"][loot] = 1
 
     else:
-        loot = random.choice(list(enemies[foe]["drops"]["legendary"].keys()))
-        loot_val = enemies[foe]["drops"]["legendary"][loot]
+        loot = random.choice(enemies[foe].r_drops)
         print(f"------------\nObtained a legendary drop!: {loot}")
         print(f"*Coins Collected: {coins}\n------------")
         if loot in inventory:
             inventory["loot bag"][loot] += 1
         else:
-            inventory["loot bag"][loot] = loot_val
+            inventory["loot bag"][loot] = 1
 
 
-def display_inventory(foe):
+def display_inventory(foe,x ,y ):
     os.system("clear")
 
     weapon1 = inventory["Right Hand"]
     armor = inventory["Armor"]
     coins = inventory["coin"]
-    print(f"******************\n---INVENTORY---\nHealth: {player_stats['health']}\n---------------")
+    print(f"******************\n---INVENTORY---\nHealth: {player_stats['health']}/{player_stats['max_health']}\n---------------")
     print(f"Right Hand: {weapon1}\nArmor:  {armor}\nCoins: {coins}\n---------------")
     print(f"Consumable Items: ")
 
@@ -274,10 +257,10 @@ def display_inventory(foe):
                 inventory["loot bag"][weapon1] = 1
                 del inventory["loot bag"][new_right_hand]
             inventory["Right Hand"] = new_right_hand
-            display_inventory(foe)
+            display_inventory(foe, x , y)
         else:
             print("Item not found in player inventory")
-            display_inventory(foe)
+            display_inventory(foe, x , y)
 
     elif inv_option == 3:
         new_armor = input(f"Change {armor} to:  ")
@@ -289,41 +272,39 @@ def display_inventory(foe):
                 inventory["loot bag"][armor] = 1
                 del inventory["loot bag"][new_armor]
             inventory["Armor"] = new_armor
-            display_inventory(foe)
+            player_stats["max_health"] -= armors[armor]['health']
+            player_stats["max_health"] += armors[new_armor]['health']
+            if player_stats["health"] > player_stats["max_health"]:
+                player_stats["health"] = player_stats["max_health"]
+            display_inventory(foe, x, y)
         else:
             print("Item not found in player inventory")
             time.sleep(1)
-            display_inventory(foe)
+            display_inventory(foe, x, y)
 
     elif inv_option == 4:
         use_potion()
         os.system("clear")
-        display_inventory(foe)
+        display_inventory(foe, x, y)
 
-
-def start():
-    ready_up = input("Battle (1)\nCheck Inventory (2)\n")
-
-    if ready_up == "1":
-        os.system("clear")
-
-        foe_list = list(enemies.keys())
-        foe = random.choice(foe_list)
-
-        print(f"---------------\n A {foe} has approached!")
-        create_enemy(foe)
-        battle(foe)
-    elif ready_up == "2":
-        display_inventory()
 
 def initiate_battle(x, y):
     os.system("clear")
     print('...')
     time.sleep(1)
     os.system("clear")
+    
+    common_enemies = ["Goblin"]
+    uncommon_enemies = ["Wolf"]
 
-    foe_list = list(enemies.keys())
-    foe = random.choice(foe_list)
+    rarity = random.randint(1,1000)
+    if rarity <= 701:
+        foe = random.choice(common_enemies)
+    else:
+        foe = random.choice(uncommon_enemies)
+
+    # foe_list = list(enemies.keys())
+    # foe = random.choice(foe_list)
     print(f"---------------\n A {foe} has appeared!")
 
     create_enemy(foe)
@@ -420,16 +401,27 @@ def town_square():
 
     os.system("clear")
     print("Welcome to the town square, traveler!\n---------------")
-    choice = int(input("What would you like to?\n  Enter The Dungeon (1)\n  Inventory(2)\n  Shop(3)\n"))
+    choice = int(input("What would you like to?\n  Enter The Dungeon (1)\n  Inventory(2)\n  Shop(3)\n  Rest(4)\n---------------\n"))
 
     if choice == 1:
         os.system("clear")
         map.mapper(5,10)
         move(5, 10)
     elif choice == 2:
-        display_inventory(None)
+        display_inventory(None, None, None)
     elif choice == 3:
         shop_chump()
+    elif choice == 4:
+        player_stats["health"] = player_stats["max_health"]
+        os.system("clear")
+        print("zzzZZZzzzZZZz...")
+        time.sleep(3)
+        os.system("clear")
+        print("You feel rested and ready!")
+        time.sleep(2)
+        town_square()
+    else:
+        town_square()
 
 def shop_chump():
     os.system("clear")

@@ -377,7 +377,7 @@ def mapper(x, y):
 
         for quardinant in walls:
             position = positions[quardinant]
-            print(f"{quardinant} : {position}")
+            # print(f"{quardinant} : {position}")
             temp[position] = wall_marker
             map = "".join(temp)
 
