@@ -1,69 +1,11 @@
+from calendar import c
 import random, json, time, os
 
 import map
 import map_gen
-import all_enemies
+from all_enemies import MagicEnemy
+from data import consumables, inventory, player_stats, item_values, enemies, weapons, armors
 
-# enemie_dict = {}
-
-# file = open('enemies.json')
-# data = json.load(file)
-
-# for i in data['enemies']:
-#     enemie_dict[i] = 'test'
-
-# file.close()
-
-item_values = {
-    "Goblin Ear": 1,
-    "Goblin Club": 5,
-    "Shiny Necklace": 8,
-    "Goblin Cleaver": 9,
-    "Goblin Trophy": 10,
-    "Wolf Skin": 1,
-    "Wolf Fang": 1,
-    "Wolf Armor": 3,
-    "White Wolf Armor": 8,
-    "Wolf Fang Spear": 5,
-    "Wolf Trophy": 10,
-    "Rags": 0,
-    "Wood Sword": 1,
-    "God Sword": 0,
-    "Iron Sword": 5,
-    "health potion": 1,
-}
-
-enemies = {
-    "Goblin": all_enemies.goblin,
-    "Wolf": all_enemies.wolf,
-}
-
-weapons = {
-    "God Sword": {"attack": 200, "accuracy": 1000},
-    "Wood Sword": {"attack": 1, "accuracy": 1},
-    "Wolf Fang Spear": {"attack": 2, "accuracy": 2},
-    "Goblin Club": {"attack": 2, "accuracy": 1},
-    "Goblin Cleaver": {"attack": 3, "accuracy": 2},
-    "Iron Sword": {"attack": 3, "accuracy": 1},
-}
-
-armors = {
-    "Rags": {"health": 0},
-    "Wolf Armor": {"health": 3},
-    "White Wolf Armor": {"health": 6},
-}
-
-consumables = {"health potion": 2}
-
-player_stats = {"health": 10, "max_health": 10}
-
-inventory = {
-    "Right Hand": "Wood Sword",
-    "Armor": "Rags",
-    "coin": 30,
-    "consumables": {'health potion': 1},
-    "loot bag": {"Goblin Ear": 1, "Wolf Armor": 1},
-}
 
 current_enemy = {}
 current_location = {}
@@ -71,6 +13,7 @@ current_location = {}
 x = current_location["x"] = map_gen.x
 y = current_location["y"] = map_gen.y
 
+fire_damage = False
 
 def create_enemy(foe):
     current_enemy.clear()
@@ -78,30 +21,81 @@ def create_enemy(foe):
     foe_attack = enemies[foe].attack
     foe_accuracy = enemies[foe].accuracy
     foe_health = enemies[foe].health
+    foe_is_magical = enemies[foe].is_magical
     foe_name = foe
+
 
     current_enemy["name"] = foe_name
     current_enemy["attack"] = foe_attack
     current_enemy["accuracy"] = foe_accuracy
     current_enemy["health"] = foe_health
+    current_enemy['is_magical'] = foe_is_magical
+
+def examine(foe, x, y):
+    choice = print("Examine Weapon(1)  Armor(2)  Potion(3)  Item(4)  Back(5)\n")
+
+    if choice == '1':
+        if choice in weapons:
+            print(f"{choice}: Attack: {weapons[choice]['attack']} Accuracy: {weapons[choice]['accuracy']}")
+        else:
+            print('Weapon not found')
+            time.sleep(1)
+
+    elif choice == '2':
+        if choice in armors:
+            print(f"{choice}: Increases max health by: {armors[choice]['health']}")
+        else:
+            print("Armor not found!")
+            time.sleep(1)
+
+    elif choice == '3':
+        if choice == 'health potion':
+            print(f"Health Potion: Adds 2 health points to your current health ")
+        elif choice == 'holywater potion':
+            print("Holywater Potion: Cures burns and takes away the constant fire damage debuf")
+        else:
+            print("Potion not found")
+
+    elif choice == '4':
+        if choice in item_values:
+            print(f"{choice}:  Sell value {item_values[choice]['value']} coins")
+        else:
+            print("Item not found")
+    # else:
+        # os.system("clear")
+        # display_inventory(foe, x, y)
 
 
-def use_potion():
+def use_potion(fire_damage):
+    print(fire_damage)
     use_potion = input("What potion do you use?\n")
     if use_potion in inventory['consumables']:
-        if player_stats["health"] + consumables[use_potion] < player_stats["max_health"]:
-            player_stats["health"] += consumables[use_potion]
-            print(
-                f"{use_potion} consumed! You are now at {player_stats['health']} health points"
-            )
-            time.sleep(1)
-            del inventory["consumables"][use_potion]
+
+        if use_potion == 'holywater potion':
+            fire_damage = False
+            print('Your burns are healed!')
+            print(fire_damage)
+            time.sleep(2)
         else:
-            print(f'Cannot exceed max health! {player_stats["health"]}/{player_stats["max_health"]} health points')
-            time.sleep(1)
+            if player_stats["health"] + consumables[use_potion] < player_stats["max_health"] + 1:
+                player_stats["health"] += consumables[use_potion]
+                print(
+                    f"{use_potion} consumed! You are now at {player_stats['health']} health points"
+                )
+                time.sleep(2)
+            else:
+                print(f'Cannot exceed max health! {player_stats["health"]}/{player_stats["max_health"]} health points')
+                time.sleep(2)
     else:
         print('Potion not found!')
         time.sleep(1)
+
+    # delete 1 or whole value if 0
+    if use_potion in inventory["consumables"]:
+        if inventory["consumables"][use_potion] > 1:
+            inventory["consumables"][use_potion] -= 1
+        else:
+            del inventory["consumables"][use_potion]
 
 
 def battle(foe, x, y):
@@ -111,16 +105,51 @@ def battle(foe, x, y):
     
     if move == '1':
         os.system("clear")
-        attack(foe, x, y)
+        attack(foe, x, y, fire_damage)
     elif move == '2':
         display_inventory(foe, x, y)
+    elif move == '3':
+        half_coin = inventory["coin"] // 2
+        choice = input(f'Running away in a panic will cause you to lose half of your coins... proceed? ({half_coin})[y/n]:  ')
+        if choice == 'y':
+            inventory["coin"] //= 2
+            current_enemy.clear()
+            print(f"You got away safely... but dropped {half_coin} coin on your way out.")
+            time.sleep(1.5)
+            town_square()
+        else:
+            battle(foe, x, y)
     else:
         os.system("clear")
         battle(foe, x, y)
 
+# I might not even need this function anymore. But i would have to change all the called functions to 'battle(foe, x, y, fire_damage)'
+def magic_battle(foe, x, y, fire_damage):
+    move = input(
+            f'MAGIC BATTLE\n---------------\n Your health: {player_stats["health"]}\n {foe} health: {current_enemy["health"]}\n---------------\n Attack (1)\n Inventory (2)\n Run Away (3)\n---------------\n'
+        )
+    
+    if move == '1':
+        os.system("clear")
+        attack(foe, x, y, fire_damage)
+    elif move == '2':
+        display_inventory(foe, x, y)
+    elif move == '3':
+        half_coin = inventory["coin"] // 2
+        choice = input(f'Running away in a panic will cause you to lose half of your coins... proceed? ({half_coin})[y/n]:  ')
+        if choice == 'y':
+            inventory["coin"] //= 2
+            print(f"You got away safely... but dropped {half_coin} coin on your way out.")
+            time.sleep(1.5)
+            town_square()
+        else:
+            battle(foe, x, y)
+    else:
+        os.system("clear")
+        magic_battle(foe, x, y, fire_damage)
 
-def attack(foe, x, y):
-
+def attack(foe, x, y, fire_damage):
+    
     weapon1 = inventory["Right Hand"]
     weapon1_attack = weapons[weapon1]["attack"]
     weapon1_accuracy = weapons[weapon1]["accuracy"]
@@ -131,7 +160,7 @@ def attack(foe, x, y):
     foe_name = foe
 
     player_accuracy_roll = random.randint(0, weapon1_accuracy)
-    print(f"{player_accuracy_roll} out of {weapon1_accuracy}")
+    # print(f"Accuracy: {player_accuracy_roll} out of {weapon1_accuracy}")
     foe_accuracy_roll = random.randint(0, foe_accuracy)
 
     if player_accuracy_roll != 0:
@@ -144,6 +173,7 @@ def attack(foe, x, y):
     elif player_accuracy_roll == 0:
         print("You missed!")
 
+
     if current_enemy["health"] <= 0:
         print(f"The {foe_name} has been defeated!")
         current_enemy.clear()
@@ -152,11 +182,15 @@ def attack(foe, x, y):
         time.sleep(3.5)
         map.mapper(x, y)
         move(x, y)
+
     else:
         if foe_accuracy_roll != 0:
-            player_stats["health"] -= foe_attack
-            time.sleep(1)
             print(f"The {foe_name} hit you for {foe_attack} damage")
+            if fire_damage != True and current_enemy["is_magical"] == True:
+                fire_damage = MagicEnemy.fire_attack()
+            else:
+                pass
+            player_stats["health"] -= foe_attack
             time.sleep(1)
             print(f"*You are now at {player_stats['health']} health points")
             time.sleep(1)
@@ -164,15 +198,46 @@ def attack(foe, x, y):
             time.sleep(1)
             print(f"The {foe_name} missed it's attack!")
             time.sleep(1)
+    # print(f"Fire Damage is: {fire_damage}")
+    # print(f"Is Magical: {current_enemy['is_magical']}")
+    if fire_damage == True:
+        player_stats["health"] -= 1
+        print(f"The fire leaves you burned! (-1 health)")
+        time.sleep(1)
+        print(f"*You are now at {player_stats['health']} health points")
+        health_check()
+        time.sleep(1)
+        magic_battle(foe, x, y, fire_damage)
+    else:
+        pass
 
+    health_check()
+
+    if current_enemy["is_magical"] == True:
+        magic_battle(foe, x, y, fire_damage)    
+    else:
+        battle(foe, x, y)
+
+
+def health_check():
     if player_stats["health"] <= 0:
         print("Your health has hit zero!")
         time.sleep(1)
         print("...")
         time.sleep(1)
-        print("GAME OVER!")
+        print("GAME OVER!\n---------------\nAll your coins have been lost...")
+        time.sleep(1)
+        inventory["coin"] = 0
+        player_stats["health"] = player_stats["max_health"]
+        respawn = input("Respawn back at Town Square? [y/n]:  ")
+        if respawn == 'n':
+            print("G A M E")
+            time.sleep(1)
+            print("O V E R")
+        else:
+            town_square()
     else:
-        battle(foe, x, y)
+        pass
 
 
 def get_drops(foe):
@@ -231,60 +296,76 @@ def display_inventory(foe,x ,y ):
 
     print("******************")
 
-    inv_option = int(
-        input(
-            f"Options:\n  Back(1)\n  Change Right Hand(2)\n  Change Armor(3)\n  Use Potion(4)\n"
-        )
-    )
-
-    if inv_option == 1:
-        if current_enemy:
+    inv_option = input(f"Options:\n  Back(1)\n  Change Right Hand(2)\n  Change Armor(3)\n  Use Potion(4)\n  Examine Item(5)\n")
+    
+    if inv_option == '1':
+        if x == None:
+            town_square()
+        elif current_enemy["is_magical"] == True:
+            os.system("clear")
+            magic_battle(foe, x, y, fire_damage)
+        elif current_enemy["is_magical"] == False or current_enemy:
             os.system("clear")
             battle(foe, x, y)
-        elif current_location["x"] == 'town_square':
-            town_square()
         else:
             os.system("clear")
             move(x, y)
 
-    elif inv_option == 2:
+    elif inv_option == '2':
         new_right_hand = input(f"Change {weapon1} to:  ")
-        if new_right_hand in inventory["loot bag"]:
-            if weapon1 in inventory["loot bag"]:
-                inventory["loot bag"][weapon1] += 1
-                del inventory["loot bag"][new_right_hand]
+        if new_right_hand in weapons:
+            if new_right_hand in inventory["loot bag"]:
+                if weapon1 in inventory["loot bag"]:
+                    inventory["loot bag"][weapon1] += 1
+                    del inventory["loot bag"][new_right_hand]
+                else:
+                    inventory["loot bag"][weapon1] = 1
+                    del inventory["loot bag"][new_right_hand]
+                inventory["Right Hand"] = new_right_hand
+                display_inventory(foe, x , y)
             else:
-                inventory["loot bag"][weapon1] = 1
-                del inventory["loot bag"][new_right_hand]
-            inventory["Right Hand"] = new_right_hand
-            display_inventory(foe, x , y)
+                print("Item not found in player inventory")
+                time.sleep(1)
+                display_inventory(foe, x , y)
         else:
-            print("Item not found in player inventory")
+            print('Weapon does not exist')
+            time.sleep(1)
             display_inventory(foe, x , y)
 
-    elif inv_option == 3:
+    elif inv_option == '3':
         new_armor = input(f"Change {armor} to:  ")
-        if new_armor in inventory["loot bag"]:
-            if armor in inventory["loot bag"]:
-                inventory["loot bag"][armor] += 1
-                del inventory["loot bag"][new_armor]
+        if new_armor in armors:
+            if new_armor in inventory["loot bag"]:
+                if armor in inventory["loot bag"]:
+                    inventory["loot bag"][armor] += 1
+                    del inventory["loot bag"][new_armor]
+                else:
+                    inventory["loot bag"][armor] = 1
+                    del inventory["loot bag"][new_armor]
+                inventory["Armor"] = new_armor
+                player_stats["max_health"] -= armors[armor]['health']
+                player_stats["max_health"] += armors[new_armor]['health']
+                if player_stats["health"] > player_stats["max_health"]:
+                    player_stats["health"] = player_stats["max_health"]
+                display_inventory(foe, x, y)
             else:
-                inventory["loot bag"][armor] = 1
-                del inventory["loot bag"][new_armor]
-            inventory["Armor"] = new_armor
-            player_stats["max_health"] -= armors[armor]['health']
-            player_stats["max_health"] += armors[new_armor]['health']
-            if player_stats["health"] > player_stats["max_health"]:
-                player_stats["health"] = player_stats["max_health"]
-            display_inventory(foe, x, y)
+                print("Item not found in player inventory")
+                time.sleep(1)
+                display_inventory(foe, x, y)
         else:
-            print("Item not found in player inventory")
+            print('Armor does not exist.')
             time.sleep(1)
             display_inventory(foe, x, y)
 
-    elif inv_option == 4:
-        use_potion()
+    elif inv_option == '4':
+        use_potion(fire_damage)
         os.system("clear")
+        display_inventory(foe, x, y)
+
+    elif inv_option == '5':
+        examine(foe, x, y)
+
+    else:
         display_inventory(foe, x, y)
 
 
@@ -295,7 +376,8 @@ def initiate_battle(x, y):
     os.system("clear")
     
     common_enemies = ["Goblin"]
-    uncommon_enemies = ["Wolf"]
+    uncommon_enemies = ["Fire Myte", "Wolf"]
+    rare_enemies = []
 
     rarity = random.randint(1,1000)
     if rarity <= 701:
@@ -305,17 +387,22 @@ def initiate_battle(x, y):
 
     # foe_list = list(enemies.keys())
     # foe = random.choice(foe_list)
-    print(f"---------------\n A {foe} has appeared!")
 
     create_enemy(foe)
-    battle(foe, x, y)
+
+    try:
+        if enemies[foe].magic:
+            print(f"---------------\nA magical {foe} has appeared!")
+            magic_battle(foe, x, y, fire_damage)
+    except:
+        print(f"---------------\nA {foe} has appeared!")
+        battle(foe, x, y)
 
 
 def move(x, y):
-
     direction = input("W, A, S, D:\n").lower()
     if direction == "w":
-        if map_gen.ten_by_ten_map[f"x{x}y{y + 1}"] == "wall" or map_gen.ten_by_ten_map[f"x{x + 1}y{y}"] == "side_wall":
+        if map_gen.ten_by_ten_map[f"x{x}y{y + 1}"] == "wall" or map_gen.ten_by_ten_map[f"x{x}y{y + 1}"] == "side_wall":
             print('You hit a wall')
             time.sleep(.5)
             os.system('clear')
@@ -330,7 +417,7 @@ def move(x, y):
             move(x,y)
 
     elif direction == "s":
-        if map_gen.ten_by_ten_map[f"x{x}y{y - 1}"] == "wall" or map_gen.ten_by_ten_map[f"x{x + 1}y{y}"] == "side_wall":
+        if map_gen.ten_by_ten_map[f"x{x}y{y - 1}"] == "wall" or map_gen.ten_by_ten_map[f"x{x}y{y - 1}"] == "side_wall":
             print('You hit a wall')
             move(x, y)
         else:
@@ -341,7 +428,7 @@ def move(x, y):
             move(x,y)
 
     elif direction == "a":
-        if map_gen.ten_by_ten_map[f"x{x - 1}y{y }"] == "wall" or map_gen.ten_by_ten_map[f"x{x + 1}y{y}"] == "side_wall":
+        if map_gen.ten_by_ten_map[f"x{x - 1}y{y }"] == "wall" or map_gen.ten_by_ten_map[f"x{x - 1}y{y}"] == "side_wall":
             print('You hit a wall')
             move(x, y)
         else:
@@ -387,6 +474,7 @@ def move_check(x, y, direction):
         initiate_battle(x, y)
     elif map_gen.ten_by_ten_map[dict_key] == "chest":
         print('You found a chest!')
+        map_gen.ten_by_ten_map[f"x{x}y{y}"] = 'path'
         time.sleep(2)
         map_gen.ten_by_ten_map[dict_key] == 'path'
     else: 
@@ -401,17 +489,20 @@ def town_square():
 
     os.system("clear")
     print("Welcome to the town square, traveler!\n---------------")
-    choice = int(input("What would you like to?\n  Enter The Dungeon (1)\n  Inventory(2)\n  Shop(3)\n  Rest(4)\n---------------\n"))
+    choice = input("What would you like to?\n  Enter The Dungeon (1)\n  Inventory(2)\n  Shop(3)\n  Rest(4)\n---------------\n")
 
-    if choice == 1:
+    if choice == '1':
         os.system("clear")
+        map_gen.create_small_map()
+        print("Entering the dungeon...")
+        time.sleep(2)
         map.mapper(5,10)
         move(5, 10)
-    elif choice == 2:
+    elif choice == '2':
         display_inventory(None, None, None)
-    elif choice == 3:
+    elif choice == '3':
         shop_chump()
-    elif choice == 4:
+    elif choice == '4':
         player_stats["health"] = player_stats["max_health"]
         os.system("clear")
         print("zzzZZZzzzZZZz...")
@@ -431,9 +522,9 @@ def shop_chump():
     print('Sell Items (3)')
     print('Back (4)')
     print(f"---------------\nMy Coins: {inventory['coin']}")
-    shop_choice = int(input('---------------\nWhat do ye fancy?\n'))
+    shop_choice = input('---------------\nWhat do ye fancy?\n')
 
-    if shop_choice == 1:
+    if shop_choice == '1':
         if inventory["coin"] >= 3:
             inventory["coin"] -= 3
             print('Thanks a million!')
@@ -445,8 +536,10 @@ def shop_chump():
             shop_chump()
         else: 
             print('OIE! You trynna rob me, mate? Come back when you got some coin.')
+            time.sleep(1)
+            shop_chump()
         
-    elif shop_choice == 2:
+    elif shop_choice == '2':
         if inventory["coin"] >= 10:
             inventory["coin"] -= 10
             print("Tis a shiny beauty she is, careful mate! Here you go!")
@@ -458,9 +551,9 @@ def shop_chump():
             shop_chump()
         else:
             print('OIE! You trynna rob me, mate? Come back when you got some coin!')
-            time.sleep(3)
+            time.sleep(1)
             shop_chump()
-    elif shop_choice == 3:
+    elif shop_choice == '3':
         os.system("clear")
         if inventory["loot bag"]:
 
@@ -486,20 +579,22 @@ def shop_chump():
                         shop_chump()
                     else:
                         print("Well stop waisting my time then mate!")
-                        time.sleep(3)
+                        time.sleep(2)
                         shop_chump()
                 else:
-                    print(f'Oie sorry mate, Chump cant but this {sell_item}. Very sketchy, it is.')
+                    print(f"Oie sorry mate, Chump can't buy this {sell_item}. Very sketchy, it is.")
+                    time.sleep(3)
+                    shop_chump()
             else:
                 print("What kinda stunty stunt ye tryna pull? A fast one?")
-                time.sleep(3)
+                time.sleep(2)
                 shop_chump()
         else:
             print("This a joke mate? You aint got squat in your loot bag!")
             time.sleep(2.5)
             shop_chump()
 
-    elif shop_choice == 4:
+    elif shop_choice == '4':
         print("Oie! Come again then, mate!")
         time.sleep(2.5)
         town_square()                                

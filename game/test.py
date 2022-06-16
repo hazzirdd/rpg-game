@@ -3,23 +3,25 @@ import random
 
 dict_enemies = {
     "Goblin": all_enemies.goblin,
-    "Wolf": {
-        "attack": 2,
-        "health": 3,
-        "accuracy": 4,
-        "drops": {
-            "common": {"Wolf Skin": 1, "Wolf Fang": 1},
-            "rare": {"Wolf Armor": 1, "Wolf Fang Spear": 1},
-            "legendary": {"White Wolf Armor": 1, "Wolf Trophy": 1},
-            "coin min": 0,
-            "coin max": 4,
-        },
-    },
+    "Fire Myte": all_enemies.fire_myte,
+    "Wolf": all_enemies.wolf
 }
-foe = 'Goblin'
 
-goblin = dict_enemies["Goblin"]
+foe = random.choice(list(dict_enemies))
 
-rand = random.choice(dict_enemies[foe].l_drops)
-loot_val = random.choice(all_enemies.wolf.r_drops)
-print(rand)
+fire_damage = False
+
+print(fire_damage)
+
+def attack_ask():
+    attack = input("attack? [y/n]:  ")
+    fight(attack)
+
+def fight(attack):
+    if attack == "y":
+        if fire_damage == False:
+            print("burn check:")
+            fire_damage = all_enemies.MagicEnemy.fire_attack()
+        attack_ask()
+
+attack_ask()

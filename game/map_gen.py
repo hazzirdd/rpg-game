@@ -111,6 +111,17 @@ ten_by_ten_map = {
     "x0y7": "side_wall",
     "x0y8": "side_wall",
     "x0y9": "side_wall",
+    "x0y10": "side_wall",
+    "x1y11": "side_wall",
+    "x2y11": "side_wall",
+    "x3y11": "side_wall",
+    "x4y11": "side_wall",
+    "x5y11": "exit",
+    "x6y11": "exit",
+    "x7y11": "side_wall",
+    "x8y11": "side_wall",
+    "x9y11": "side_wall",
+    "x10y11": "side_wall",
     "x0y11": "side_wall",
     "x1y11": "side_wall",
     "x2y11": "side_wall",
@@ -144,9 +155,9 @@ ten_by_ten_map = {
     "x10y0": "side_wall",
 }
 
-tiles = ["wall", "wall", "wall", "wall", "wall", "wall", "wall",
-"path", "path", "path", "path", "path", "path", "path", "path",
-"enemy", "enemy",
+tiles = ["wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall",
+"path", "path", "path", "path", "path", "path", "path", "path", "path",
+"enemy", "enemy", "enemy",
 "chest"
 ]
 
@@ -326,6 +337,7 @@ def create_small_map():
     ten_by_ten_map["x6y8"] = "path"
 
     ten_by_ten_map["x10y2"] = "wall"
+    
     ten_by_ten_map["x11y1"] = "side_wall"
     ten_by_ten_map["x11y2"] = "side_wall"
     ten_by_ten_map["x11y3"] = "side_wall"
